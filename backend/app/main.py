@@ -1,5 +1,6 @@
 import asyncio, math, random, time, json, threading
 from collections import defaultdict, deque
+from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -158,6 +159,38 @@ async def startup():
 @app.get("/api/devices")
 def get_devices():
     return {"devices": [d.to_dict() for d in devices.values()], "anomalies": anomaly_log[-10:]}
+
+
+@app.get("/api/anomaly-rules")
+def get_anomaly_rules():
+    """返回全部触发条件名称（含滑动窗口趋势规则），供前端筛选下拉使用。"""
+    names = [r["name"] for r in rules_engine.rules]
+    names.append("温度趋势上升")
+    return {"rules": names}
+
+
+@app.get("/api/anomalies")
+def get_anomalies(start: Optional[float] = None, end: Optional[float] = None,
+                  rule: Optional[str] = None, limit: int = 500):
+    """按时间范围与触发条件查询历史告警记录。只读查询，不改动 anomaly_log 中的已有记录。"""
+    matched = []
+    for rec in list(anomaly_log):  # 快照遍历，避免与模拟线程并发修改冲突
+        ts = rec["timestamp"]
+        if start is not None and ts < start:
+            continue
+        if end is not None and ts > end:
+            continue
+        triggers = rec["triggers"]
+        if rule:
+            triggers = [t for t in triggers if t["rule"] == rule]
+            if not triggers:
+                continue
+        # 重新组dict，过滤触发条件时不影响已存储的原始记录
+        matched.append({"timestamp": ts, "device_type": rec["device_type"], "triggers": triggers})
+    total = len(matched)
+    if limit > 0:
+        matched = matched[-limit:]
+    return {"anomalies": matched, "total": total}
 
 
 @app.get("/api/oee")

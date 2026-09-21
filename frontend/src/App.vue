@@ -1,4 +1,5 @@
 <template>
+  <el-config-provider :locale="zhCn">
   <div class="app-root">
     <header class="top-bar">
       <h1>🏭 数字孪生工厂产线实时监控系统</h1>
@@ -21,10 +22,12 @@
       <FaultPie />
     </div>
   </div>
+  </el-config-provider>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import FactoryScene from './components/FactoryScene.vue'
 import DeviceList from './components/DeviceList.vue'
 import AnomalyList from './components/AnomalyList.vue'
