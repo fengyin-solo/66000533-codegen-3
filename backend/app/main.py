@@ -1,5 +1,6 @@
 import asyncio, math, random, time, json, threading
 from collections import defaultdict, deque
+from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -158,6 +159,32 @@ async def startup():
 @app.get("/api/devices")
 def get_devices():
     return {"devices": [d.to_dict() for d in devices.values()], "anomalies": anomaly_log[-10:]}
+
+
+@app.get("/api/anomaly-rules")
+def get_anomaly_rules():
+    # 触发条件口径与规则引擎保持一致，供前端筛选下拉使用
+    names = [r["name"] for r in rules_engine.rules] + ["温度趋势上升"]
+    return {"rules": names}
+
+
+@app.get("/api/anomalies")
+def get_anomalies(start: Optional[float] = None, end: Optional[float] = None,
+                  rule: Optional[str] = None, limit: int = 200):
+    """按时间范围(epoch秒)与触发条件查询历史告警。只读快照，不改动 anomaly_log 中的已有记录。"""
+    snapshot = list(anomaly_log)  # 模拟线程仍在追加，先取快照避免遍历期间变化
+    hits = []
+    for rec in snapshot:
+        ts = rec.get("timestamp", 0)
+        if start is not None and ts < start:
+            continue
+        if end is not None and ts > end:
+            continue
+        if rule and not any(t.get("rule") == rule for t in rec.get("triggers", [])):
+            continue
+        hits.append(rec)
+    limit = max(1, min(limit, 1000))
+    return {"total": len(hits), "anomalies": hits[-limit:]}
 
 
 @app.get("/api/oee")

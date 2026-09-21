@@ -6,7 +6,7 @@ export interface Device {
 }
 
 export interface Anomaly {
-  timestamp: number; triggers: { device_id: number; rule: string; value: number; threshold: string }[]
+  timestamp: number; triggers: { device_id: number; rule: string; value: number; threshold: number | string }[]
   device_type: string
 }
 
